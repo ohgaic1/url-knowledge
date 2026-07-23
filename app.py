@@ -20,17 +20,27 @@ def _load_env_file(path: str) -> dict:
         result[k.strip()] = v.strip().strip('"').strip("'")
     return result
 
-# python-dotenv が使えれば使う
+# python-dotenv が使えれば使う（ローカル優先 → C:\dev\.env フォールバック）
 try:
     from dotenv import load_dotenv
     load_dotenv(r"C:\dev\url-knowledge\.env", override=False)
+    _common_env = Path(r"C:\dev\.env")
+    if _common_env.exists():
+        load_dotenv(str(_common_env), override=False)
     _env = {}
 except ImportError:
     _env = _load_env_file(r"C:\dev\url-knowledge\.env")
+    _common = _load_env_file(r"C:\dev\.env")
+    for _k, _v in _common.items():
+        if _k not in _env:
+            _env[_k] = _v
 
 import os
 _env_defaults = {
-    "CLAUDE_API_KEY":  os.environ.get("CLAUDE_API_KEY",  _env.get("CLAUDE_API_KEY",  "")),
+    # CLAUDE_API_KEY: ローカル設定優先、なければ ANTHROPIC_API_KEY を共通envから使用
+    "CLAUDE_API_KEY":  (os.environ.get("CLAUDE_API_KEY")
+                        or _env.get("CLAUDE_API_KEY")
+                        or os.environ.get("ANTHROPIC_API_KEY", "")),
     "NOTION_API_KEY":  os.environ.get("NOTION_API_KEY",  _env.get("NOTION_API_KEY",  "")),
     "NOTION_DB_ID":    os.environ.get("NOTION_DB_ID",    _env.get("NOTION_DB_ID",    "")),
 }
