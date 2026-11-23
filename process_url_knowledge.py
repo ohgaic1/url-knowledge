@@ -292,4 +292,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # ★落ちたら非ゼロ終了と標準エラーで外へ出す（2026-11-24・沈黙する造りの受理が 2026-11-24 に切れるため先に直した）。
+    #   url-knowledge は PC-B の外（Procfile）でも動くので shared-lib の run_guarded は読めない
+    #   （dev-tools/tests/test_cloud_repos_no_shared_lib.py）。手で回す道具なので Slack には出さない。
+    import sys as _sys
+    try:
+        _rc = main()
+    except Exception:                                    # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        print("[FATAL] process_url_knowledge.py が例外で停止した", file=_sys.stderr)
+        _sys.exit(1)
+    _sys.exit(int(_rc or 0))

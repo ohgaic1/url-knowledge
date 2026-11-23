@@ -124,13 +124,13 @@ def create_notion_page(title: str, url: str, tags: list[str], saved_date: str) -
         "parent": {"database_id": NOTION_DB_ID},
         "properties": properties,
     }
-    resp = requests.post(
+    # ★2026-11-24: 応答はそのまま呼び出し元へ返す（main が status_code を見て失敗を数える）
+    return requests.post(
         "https://api.notion.com/v1/pages",
         headers=HEADERS,
         json=payload,
         timeout=30,
     )
-    return resp
 
 
 def main():
@@ -191,7 +191,19 @@ def main():
         print("\n--- エラー詳細 ---")
         for e in errors:
             print(f"  {e}")
+    return 1 if failed else 0   # ★2026-11-24: 失敗を数えて 0 で終わらない
 
 
 if __name__ == "__main__":
-    main()
+    # ★落ちたら非ゼロ終了と標準エラーで外へ出す（2026-11-24・沈黙する造りの受理が 2026-11-24 に切れるため先に直した）。
+    #   url-knowledge は PC-B の外（Procfile）でも動くので shared-lib の run_guarded は読めない
+    #   （dev-tools/tests/test_cloud_repos_no_shared_lib.py）。手で回す道具なので Slack には出さない。
+    import sys as _sys
+    try:
+        _rc = main()
+    except Exception:                                    # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        print("[FATAL] import_keep_to_notion.py が例外で停止した", file=_sys.stderr)
+        _sys.exit(1)
+    _sys.exit(int(_rc or 0))
